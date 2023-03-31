@@ -5,35 +5,33 @@ import tensorflow_datasets as tfds
 #from google.colab import drive
 
 class ChallengeDataset:
-    def __init__(self, data_dir, submission_dir, subj=1, img_height = 320, img_width = 320, batch_size = 100):
+    def __init__(self, data_dir, submission_dir, subj, img_height = 320, img_width = 320, batch_size = 100):
         # drive.mount('/content/drive/', force_remount=True)
         #data_dir = '/content/drive/MyDrive/algonauts_2023_tutorial_data' 
         # parent_submission_dir = '/content/drive/MyDrive/algonauts_2023_challenge_submission' 
         self.data_dir = data_dir
         self.submission_dir = submission_dir
-        self.subj = subj
+        self.subj=int(subj)
 
         args = argObj(self.data_dir, self.submission_dir, self.subj)
 
         self.train_img_dir  = os.path.join(args.data_dir, 'training_split', 'training_images')
         self.test_img_dir  = os.path.join(args.data_dir, 'test_split', 'test_images')
 
-        self.train_img_list = os.listdir(self.train_img_dir)
-        self.train_img_list.sort()
-        self.test_img_list = os.listdir(self.test_img_dir)
-        self.test_img_list.sort()
+        train_img_list = os.listdir(self.train_img_dir)
+        self.len_train_ds = len(train_img_list)
+        test_img_list = os.listdir(self.test_img_dir)
+        self.len_test_ds = len(test_img_list)
 
         self.fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
         self.lh_fmri = np.load(os.path.join(self.fmri_dir, 'lh_training_fmri.npy'))
         self.rh_fmri = np.load(os.path.join(self.fmri_dir, 'rh_training_fmri.npy'))
 
-        self.idxs_train, self.idxs_val, self.idxs_test = self.create_indices()
-
         self.img_height = img_height
         self.img_width = img_width
         self.batch_size = batch_size
 
-        self.train_ds, self.val_ds = self.create_ds(self.batch_size)
+        self.train_ds, self.val_ds, self.test_ds = self.create_ds(self.batch_size)
 
         
     
@@ -49,7 +47,7 @@ class ChallengeDataset:
             image_size=(self.img_height, self.img_width),
             batch_size=None)
 
-        val_ds = tf.keras.utils.image_dataset_from_directory(
+        test_ds = tf.keras.utils.image_dataset_from_directory(
             self.test_img_dir,
             color_mode="rgb",
             labels=None,
@@ -70,11 +68,11 @@ class ChallengeDataset:
             return tf.stack(out, axis=-1)
         
         train_ds = train_ds.map(lambda x: normalize_rgb(x))
-        val_ds = val_ds.map(lambda x: normalize_rgb(x))
+        test_ds = test_ds.map(lambda x: normalize_rgb(x))
 
         #Enumerate Dataset. This will be used to map the labels to the images
         train_ds = train_ds.enumerate(start=1)
-        val_ds = val_ds.enumerate(start=1)
+        test_ds = test_ds.enumerate(start=1)
 
         #Convert fMRI-data to tensors to make use of tensorflow functionality
         lh_fmri_tensor = tf.constant(self.lh_fmri)
@@ -96,32 +94,18 @@ class ChallengeDataset:
             return img, lh_fmri, rh_fmri
 
         train_ds = train_ds.map(add_fmri)
-        train_ds = train_ds.batch(batch_size, drop_remainder=True)
-        val_ds = val_ds.map(add_fmri)
-        val_ds = val_ds.batch(batch_size, drop_remainder=True)
+        train_ds = train_ds.take(self.len_train_ds - 1)
+        train_ds_ = train_ds.shuffle(1000)
+        train_ds = train_ds_.take(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+
+        val_ds = train_ds_.skip(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+
+        test_ds = test_ds.map(add_fmri)
+        test_ds = test_ds.take(self.len_test_ds - 1)
+        test_ds = test_ds.shuffle(1000).batch(batch_size, drop_remainder=True)
         
-        return train_ds, val_ds
+        return train_ds, val_ds, test_ds
     
-    def create_indices(self):
-        rand_seed = 5
-        np.random.seed(rand_seed)
-
-        # Calculate how many stimulus images correspond to 90% of the training data
-        num_train = int(np.round(len(self.train_img_list) / 100 * 90))
-        # Shuffle all training stimulus images
-        idxs = np.arange(len(self.train_img_list))
-        np.random.shuffle(idxs)
-        # Assign 90% of the shuffled stimulus images to the training partition,
-        # and 10% to the test partition
-        idxs_train, idxs_val = idxs[:num_train], idxs[num_train:]
-        # No need to shuffle or split the test stimulus images
-        idxs_test = np.arange(len(self.test_img_list))
-
-        print('Training stimulus images: ' + format(len(idxs_train)))
-        print('\nValidation stimulus images: ' + format(len(idxs_val)))
-        print('\nTest stimulus images: ' + format(len(idxs_test)))
-        return idxs_train, idxs_val, idxs_test
-
 
     
 class argObj:
