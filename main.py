@@ -137,9 +137,9 @@ if __name__ == "__main__":
         # get the downsampled features for every dataset and save them in the current working directory
         features_train = extract_features(model, train_ds, pca, 100, int(args.feature_map))
         np.save('features_train_retinanet' + args.subj + '.npy', features_train)
-        features_val= extract_features(model, val_ds, pca, 100, int(args.feature_map))
+        features_val = extract_features(model, val_ds, pca, 100, int(args.feature_map))
         np.save('features_val_retinanet' + args.subj + '.npy', features_val)
-        features_test = extract_features(model, test_ds, pca, 100, int(args.feature_map))
+        features_test = extract_features_test(model, test_ds, pca, 100, int(args.feature_map))
         np.save('features_test_retinanet' + args.subj + '.npy', features_test)
 
         # print the shapes of the downsampled features
@@ -188,4 +188,3 @@ if __name__ == "__main__":
         # laod visualisation class and output graph showing accuracy grouped by brain regions
         visualization = VisualizeFMRI(args.data_dir + '/subj0'+ args.subj)
         visualization.visualize_rois(lh_correlation, rh_correlation, 'subj0' + args.subj + ".png")
-

@@ -170,4 +170,3 @@ class ObjectDetectionModel:
         '''
         features = self.model.extract_features(data)[feature]
         return features
-
