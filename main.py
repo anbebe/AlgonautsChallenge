@@ -18,10 +18,10 @@ def load_and_test_model(model, data):
 
 def fit_pca(model, dataloader, batch_size):
 
-    feature_indx = 5
+    feature_indx = 3 #TODO: ändern in args
 
     # Define PCA parameters
-    pca = IncrementalPCA(n_components=50, batch_size=batch_size)
+    pca = IncrementalPCA(n_components=100, batch_size=batch_size)
 
     # Fit PCA to batch
     for _, d in tqdm(enumerate(dataloader), total=len(dataloader)):
@@ -47,6 +47,7 @@ def extract_features(model, dataloader, pca, batch_size, feature_indx):
 
 def train_linear_regression(features, lh_fmri, rh_fmri):
     lh_fmri = np.vstack(tfds.as_numpy(lh_fmri))
+    lh_fmri = np.concatenate(list(lh_fmri))
     print("test: ", lh_fmri.shape)
     rh_fmri = np.vstack(tfds.as_numpy(rh_fmri))
     print("start fitting")
@@ -66,6 +67,8 @@ def compute_accuracy(lh_fmri_val_pred, rh_fmri_val_pred, lh_fmri_val, rh_fmri_va
     # Empty correlation array of shape: (LH vertices)
     lh_correlation = np.zeros(lh_fmri_val_pred.shape[1])
     # Correlate each predicted LH vertex with the corresponding ground truth vertex
+    print("1: "+lh_fmri_val_pred.shape)
+    print("2: "+lh_fmri_val.shape)
     for v in tqdm(range(lh_fmri_val_pred.shape[1])):
         lh_correlation[v] = corr(lh_fmri_val_pred[:,v], lh_fmri_val[:,v])[0]
 
@@ -131,7 +134,7 @@ if __name__ == "__main__":
         rh_fmri_val = np.vstack(tfds.as_numpy(val_ds.map(lambda _,__, rh: rh)))
         lh_correlation, rh_correlation = compute_accuracy(lh_fmri_val_pred, rh_fmri_val_pred, lh_fmri_val, rh_fmri_val)
 
-        visualization = VisualizeFMRI(args.data_dir)
+        visualization = VisualizeFMRI(args.data_dir + '/subj'+ args.subj)
 
         visualization.visualize_rois(lh_correlation, rh_correlation)
 

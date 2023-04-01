@@ -95,14 +95,13 @@ class ChallengeDataset:
 
         train_ds = train_ds.map(add_fmri)
         train_ds = train_ds.take(self.len_train_ds - 1)
-        train_ds_ = train_ds.shuffle(1000)
-        train_ds = train_ds_.take(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+        train_ds = train_ds.take(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
-        val_ds = train_ds_.skip(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
+        val_ds = train_ds.skip(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
-        test_ds = test_ds.map(add_fmri)
+        #test_ds = test_ds.map(add_fmri)
         test_ds = test_ds.take(self.len_test_ds - 1)
-        test_ds = test_ds.shuffle(1000).batch(batch_size, drop_remainder=True)
+        test_ds = test_ds.batch(batch_size, drop_remainder=True)
         
         return train_ds, val_ds, test_ds
     
