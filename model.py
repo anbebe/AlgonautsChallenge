@@ -1,3 +1,8 @@
+'''
+Builds the object detection model RetinaNet with a ResNet50 backbone based on the official keras implementation
+(https://keras.io/examples/vision/retinanet/) and loads the keras pre-trained model of it. 
+Extends the keras implementation by a function to extract intermediate results. 
+'''
 import keras
 import numpy as np
 import tensorflow as tf
@@ -54,6 +59,9 @@ class FeaturePyramid(keras.layers.Layer):
 
     
     def extract_features(self, images):
+        '''
+        added to official implementation: extract intermediate outputs by returning all outputs from backbone and feature pyramid
+        '''
         c3_output, c4_output, c5_output = self.backbone(images, training=False)
         p3_output = self.conv_c3_1x1(c3_output)
         p4_output = self.conv_c4_1x1(c4_output)
@@ -130,23 +138,36 @@ class RetinaNet(keras.Model):
         return tf.concat([box_outputs, cls_outputs], axis=-1)
 
     def extract_features(self, image):
+      '''
+        added to official implementation: extract intermediate outputs by returning all outputs from backbone and feature pyramid
+      '''
       features = self.fpn.extract_features(image)
       return features
     
 class ObjectDetectionModel:
+    '''
+        Builds Detection model from scratch (based on keras implementation), loads pretrained model, transfer weigths to the model
+        made by scratch to know the layers and have access to the intermediate results.
+    '''
 
     def __init__(self):
         super().__init__()
+        # load pre-trained model
         pretrained_model = from_pretrained_keras("keras-io/Object-Detection-RetinaNet", compile=False)
         num_classes = 80
+        # build retinaNet from scratch with matching architecture to the pretrained one
         resnet50_backbone = get_backbone()
         self.model = RetinaNet(num_classes, resnet50_backbone)
-        #dummy_input = tf.ones((1,384,512,3))
+        # build the model via running it with the wanted input size
         dummy_input = tf.ones((1,320,320,3))
         self.model(dummy_input)
+        # transfer weights from pretrained model to the model that should be used
         self.model.set_weights(pretrained_model.get_weights())
 
     def feature_extractor(self, data, feature):
+        '''
+        added to official implementation: extract intermediate outputs by returning all outputs from backbone and feature pyramid
+        '''
         features = self.model.extract_features(data)[feature]
         return features
 

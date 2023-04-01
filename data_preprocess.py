@@ -1,28 +1,33 @@
+'''
+Loads the Algonauts challenge dataset from given directory and builds seperate tensorflow dataset for further processing.
+'''
 import os
 import numpy as np
 import tensorflow as tf
 import tensorflow_datasets as tfds
-#from google.colab import drive
 
 class ChallengeDataset:
+    '''
+        data class that contains the loading and preprocessing of the challenge dataset
+    '''
     def __init__(self, data_dir, submission_dir, subj, img_height = 320, img_width = 320, batch_size = 100):
-        # drive.mount('/content/drive/', force_remount=True)
-        #data_dir = '/content/drive/MyDrive/algonauts_2023_tutorial_data' 
-        # parent_submission_dir = '/content/drive/MyDrive/algonauts_2023_challenge_submission' 
         self.data_dir = data_dir
         self.submission_dir = submission_dir
         self.subj=int(subj)
 
+        # create the data directories
         args = argObj(self.data_dir, self.submission_dir, self.subj)
-
+        # train and test directories corresponding to the chosen subject
         self.train_img_dir  = os.path.join(args.data_dir, 'training_split', 'training_images')
         self.test_img_dir  = os.path.join(args.data_dir, 'test_split', 'test_images')
 
+        # get amount of train and test data (images)
         train_img_list = os.listdir(self.train_img_dir)
         self.len_train_ds = len(train_img_list)
         test_img_list = os.listdir(self.test_img_dir)
         self.len_test_ds = len(test_img_list)
 
+        # load the fmri data for the training and validation dataset
         self.fmri_dir = os.path.join(args.data_dir, 'training_split', 'training_fmri')
         self.lh_fmri = np.load(os.path.join(self.fmri_dir, 'lh_training_fmri.npy'))
         self.rh_fmri = np.load(os.path.join(self.fmri_dir, 'rh_training_fmri.npy'))
@@ -31,13 +36,20 @@ class ChallengeDataset:
         self.img_width = img_width
         self.batch_size = batch_size
 
+        # preprocess the datasets
         self.train_ds, self.val_ds, self.test_ds = self.create_ds(self.batch_size)
 
         
     
 
     def create_ds(self, batch_size):
+        '''
+            load the datasets from directory, preprocess the image data and add the fmri data corresponding
+            to the training images and split training into training and validation,
 
+            return training, validation and test dataset
+        '''
+        # load train and test images from the given data directory
         train_ds = tf.keras.utils.image_dataset_from_directory(
             self.train_img_dir,
             color_mode="rgb",
@@ -58,8 +70,10 @@ class ChallengeDataset:
         
         def normalize_rgb(img):
             '''
-            output[channel] = (input[channel] - mean[channel]) / std[channel]
-            Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) # normalize the images color channels
+            Normalize the images color channels by the same values as in the algonauts colab tutorial 
+            Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225]) (Pytorch version in the tutorial)
+
+            return normalised values
             '''
             out = []
             out.append(img[:,:,0] - 0.485 / 0.229)
@@ -67,6 +81,7 @@ class ChallengeDataset:
             out.append(img[:,:,2] - 0.406 / 0.225)
             return tf.stack(out, axis=-1)
         
+        # normalize image values
         train_ds = train_ds.map(lambda x: normalize_rgb(x))
         test_ds = test_ds.map(lambda x: normalize_rgb(x))
 
@@ -93,13 +108,15 @@ class ChallengeDataset:
 
             return img, lh_fmri, rh_fmri
 
+        # add fmri data to the images
         train_ds = train_ds.map(add_fmri)
+        # split train dataset in train and validation dataset
         train_ds = train_ds.take(self.len_train_ds - 1)
         train_ds = train_ds.take(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
         val_ds = train_ds.skip(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
-        #test_ds = test_ds.map(add_fmri)
+        # preprocess test dataset
         test_ds = test_ds.take(self.len_test_ds - 1)
         test_ds = test_ds.batch(batch_size, drop_remainder=True)
         
@@ -119,16 +136,3 @@ class argObj:
         # Create the submission directory if not existing
         if not os.path.isdir(self.subject_submission_dir):
             os.makedirs(self.subject_submission_dir)
-
-'''
-if __name__ == "__main__":
-    data = ChallengeDataset(data_dir='./data', submission_dir='../algonauts_2023_challenge_submission')
-    for element in data.train_ds.take(1):
-        print("image shape: ", element[0][0].shape)
-        print("lh_fmri: ", element[0][1].shape)
-        print("rh_fmri: ", element[0][2].shape)
-'''
-
-
-
-

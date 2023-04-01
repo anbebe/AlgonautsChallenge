@@ -1,3 +1,7 @@
+'''
+Visualisation class that saves information to the brain data and a function to plot the accuracy of predictions.
+Code from https://colab.research.google.com/drive/1bLJGP3bAo_hAOwZPHpiSHKlt97X9xsUw?usp=share_link#scrollTo=S5-uT-S9zIQ0
+'''
 import numpy as np
 import matplotlib.pyplot as plt
 import os
