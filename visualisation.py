@@ -33,7 +33,7 @@ class VisualizeFMRI:
             roi_class = 'streams'
         return roi_class
 
-    def visualize_rois(self, lh_correlation, rh_correlation):
+    def visualize_rois(self, lh_correlation, rh_correlation, filename):
         # Load the ROI classes mapping dictionaries
         roi_mapping_files = ['mapping_prf-visualrois.npy', 'mapping_floc-bodies.npy',
             'mapping_floc-faces.npy', 'mapping_floc-places.npy',
@@ -93,4 +93,5 @@ class VisualizeFMRI:
         plt.xticks(ticks=x, labels=roi_names, rotation=60)
         plt.ylabel('Median Pearson\'s $r$')
         plt.legend(frameon=True, loc=1)
+        plt.savefig(filename)
         plt.show()

@@ -46,6 +46,22 @@ def extract_features(model, dataloader, pca, batch_size, feature_indx):
         features.append(ft)
     return np.vstack(features)
 
+def extract_features_test(model, dataloader, pca, batch_size, feature_indx):
+    '''
+    get features from test set (only has images, therefore different shape) and downsample them with pca 
+    from https://colab.research.google.com/drive/1bLJGP3bAo_hAOwZPHpiSHKlt97X9xsUw?usp=share_link#scrollTo=S5-uT-S9zIQ0
+    but changed in huge parts to work with tensorflow instead of PyTorch
+    '''
+    features = []
+    for _, d in tqdm(enumerate(dataloader), total=len(dataloader)):
+        # Extract features
+        ft =  model.feature_extractor(d, feature_indx)
+        ft = np.hstack([np.reshape(l,(batch_size,-1)) for l in ft])
+        # Apply PCA transform
+        ft = pca.transform(ft)
+        features.append(ft)
+    return np.vstack(features)
+
 def train_linear_regression(features, lh_fmri, rh_fmri):
     '''
     preprocess the fmri data to get numpy arrays and fit linear regression on the features and the fmri data
@@ -54,11 +70,9 @@ def train_linear_regression(features, lh_fmri, rh_fmri):
     '''
     # convert the left hemisphere fmri dataset to a numpy array
     lh_fmri = np.vstack(tfds.as_numpy(lh_fmri))
-    lh_fmri = np.concatenate(list(lh_fmri))
 
     # convert the right hemisphere fmri dataset to a numpy array
     rh_fmri = np.vstack(tfds.as_numpy(rh_fmri))
-    rh_fmri = np.concatenate(list(rh_fmri))
 
     # fit liear regression to predict the fmri data from the extracted features
     reg_lh = LinearRegression().fit(features, lh_fmri)
@@ -101,7 +115,7 @@ if __name__ == "__main__":
     parser.add_argument('--data_dir', help='direction of the challenge data (should be parent directory of the subjects)')
     parser.add_argument('--subj', default = "1", choices=["1","2","3","4","5","6","7","8"], help='which subject data should be used')
     parser.add_argument('--submission_dir', default='../algonauts_2023_challenge_submission', help='direction to store the voxel predictions, if not existend, it will be created')
-    parser.add_argument('--feature_map', default=5, choices=[0,1,2,3,4,5,6,7], help='which feature map to extract from the model')
+    parser.add_argument('--feature_map', default="5", choices=["0","1","2","3","4","5","6","7"], help='which feature map to extract from the model')
 
     args = parser.parse_args()
 
@@ -118,14 +132,14 @@ if __name__ == "__main__":
         # load the pretrained retinanet
         model = ObjectDetectionModel()
         # fit pca to the train features
-        pca = fit_pca(model, train_ds, 100, args.feature_map)
+        pca = fit_pca(model, train_ds, 100, int(args.feature_map))
 
         # get the downsampled features for every dataset and save them in the current working directory
-        features_train = extract_features(model, train_ds, pca, 100, args.feature_map)
+        features_train = extract_features(model, train_ds, pca, 100, int(args.feature_map))
         np.save('features_train_retinanet' + args.subj + '.npy', features_train)
-        features_val= extract_features(model, val_ds, pca, 100, args.feature_map)
+        features_val= extract_features(model, val_ds, pca, 100, int(args.feature_map))
         np.save('features_val_retinanet' + args.subj + '.npy', features_val)
-        features_test = extract_features(model, test_ds, pca, 100, args.feature_map)
+        features_test = extract_features(model, test_ds, pca, 100, int(args.feature_map))
         np.save('features_test_retinanet' + args.subj + '.npy', features_test)
 
         # print the shapes of the downsampled features
@@ -172,6 +186,6 @@ if __name__ == "__main__":
         lh_correlation, rh_correlation = compute_accuracy(lh_fmri_val_pred, rh_fmri_val_pred, lh_fmri_val, rh_fmri_val)
 
         # laod visualisation class and output graph showing accuracy grouped by brain regions
-        visualization = VisualizeFMRI(args.data_dir + '/subj'+ args.subj)
-        visualization.visualize_rois(lh_correlation, rh_correlation)
+        visualization = VisualizeFMRI(args.data_dir + '/subj0'+ args.subj)
+        visualization.visualize_rois(lh_correlation, rh_correlation, 'subj0' + args.subj + ".png")
 

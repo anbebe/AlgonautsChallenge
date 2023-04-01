@@ -1,5 +1,7 @@
 '''
 Loads the Algonauts challenge dataset from given directory and builds seperate tensorflow dataset for further processing.
+Code from https://colab.research.google.com/drive/1bLJGP3bAo_hAOwZPHpiSHKlt97X9xsUw?usp=share_link#scrollTo=S5-uT-S9zIQ0
+but changed in huge parts to work with tensorflow instead of PyTorch
 '''
 import os
 import numpy as np
@@ -82,12 +84,12 @@ class ChallengeDataset:
             return tf.stack(out, axis=-1)
         
         # normalize image values
-        train_ds = train_ds.map(lambda x: normalize_rgb(x))
-        test_ds = test_ds.map(lambda x: normalize_rgb(x))
+        train_ds = train_ds.map(lambda x: normalize_rgb(x/255.))
+        test_ds = test_ds.map(lambda x: normalize_rgb(x/255.))
 
         #Enumerate Dataset. This will be used to map the labels to the images
         train_ds = train_ds.enumerate(start=1)
-        test_ds = test_ds.enumerate(start=1)
+        # test_ds = test_ds.enumerate(start=1)
 
         #Convert fMRI-data to tensors to make use of tensorflow functionality
         lh_fmri_tensor = tf.constant(self.lh_fmri)
@@ -111,13 +113,13 @@ class ChallengeDataset:
         # add fmri data to the images
         train_ds = train_ds.map(add_fmri)
         # split train dataset in train and validation dataset
-        train_ds = train_ds.take(self.len_train_ds - 1)
+        train_ds = train_ds.take(self.len_train_ds - 1).shuffle(1000)
         train_ds = train_ds.take(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
         val_ds = train_ds.skip(int(0.8*self.len_train_ds)).batch(batch_size, drop_remainder=True).prefetch(tf.data.AUTOTUNE)
 
         # preprocess test dataset
-        test_ds = test_ds.take(self.len_test_ds - 1)
+        #test_ds = test_ds.take(self.len_test_ds - 1)
         test_ds = test_ds.batch(batch_size, drop_remainder=True)
         
         return train_ds, val_ds, test_ds
